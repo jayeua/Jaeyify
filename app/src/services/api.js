@@ -31,15 +31,32 @@ class ApiService {
     return headers;
   }
 
+  // Wake up the Render free-tier server (it sleeps after 15 min of inactivity)
+  async ensureServerAwake() {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60s for cold start
+      await fetch(`${this.baseURL}/api/health`, { signal: controller.signal });
+      clearTimeout(timeout);
+    } catch (e) {
+      // If health check fails, the actual request will also fail with a better error
+      console.log('Server wake-up ping failed:', e.message);
+    }
+  }
+
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     const config = {
-      ...options,
+      method: options.method || 'GET',
       headers: {
         ...this.getHeaders(options.isFormData),
         ...options.headers,
       },
     };
+
+    if (options.body) {
+      config.body = options.body;
+    }
 
     if (options.isFormData) {
       delete config.headers['Content-Type'];
@@ -50,15 +67,18 @@ class ApiService {
 
       // Try to parse as JSON, handle non-JSON responses gracefully
       let data;
-      const contentType = response.headers.get('content-type') || '';
       const text = await response.text();
 
       try {
         data = JSON.parse(text);
       } catch (parseErr) {
-        // Response wasn't JSON - might be SSE or error page
+        // Response wasn't JSON - might be SSE, error page, or Render timeout
         if (!response.ok) {
-          throw new Error(`Server error (${response.status})`);
+          // Check for common Render error pages
+          if (response.status === 502 || response.status === 503) {
+            throw new Error('Server is starting up. Please wait a moment and try again.');
+          }
+          throw new Error(`Server error (${response.status}): ${text.substring(0, 100)}`);
         }
         // If it looks like SSE data, try to extract the last JSON event
         if (text.includes('data: ')) {
@@ -77,7 +97,7 @@ class ApiService {
       }
 
       if (!response.ok) {
-        throw new Error(data.error || data.message || 'Request failed');
+        throw new Error(data.error || data.message || `Request failed (${response.status})`);
       }
 
       return data;
@@ -136,6 +156,8 @@ class ApiService {
   }
 
   async uploadSong(formData) {
+    // Wake up server first (Render free tier goes to sleep)
+    await this.ensureServerAwake();
     return this.request('/api/music/upload', {
       method: 'POST',
       body: formData,
@@ -144,6 +166,7 @@ class ApiService {
   }
 
   async uploadBatch(formData) {
+    await this.ensureServerAwake();
     return this.request('/api/music/upload-batch', {
       method: 'POST',
       body: formData,
@@ -185,6 +208,7 @@ class ApiService {
 
   // Import song from YouTube / SoundCloud URL
   async importFromUrl(url) {
+    await this.ensureServerAwake();
     return this.request('/api/music/import-url', {
       method: 'POST',
       body: JSON.stringify({ url }),

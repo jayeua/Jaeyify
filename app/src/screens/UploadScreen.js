@@ -91,6 +91,8 @@ export default function UploadScreen({ navigation }) {
           });
         });
 
+        setUploadProgress('Waking up server...');
+        await api.ensureServerAwake();
         setUploadProgress(`Uploading ${files.length} songs...`);
         const result = await api.uploadBatch(formData);
         Alert.alert('Success', result.message, [
@@ -120,6 +122,8 @@ export default function UploadScreen({ navigation }) {
           });
         }
 
+        setUploadProgress('Connecting to server...');
+        await api.ensureServerAwake();
         setUploadProgress('Uploading...');
         const result = await api.uploadSong(formData);
         Alert.alert('Success', `"${result.song.title}" uploaded!`, [

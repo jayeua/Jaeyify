@@ -71,13 +71,24 @@ const upload = multer({
 // Upload a song
 // Streams the original file to disk: NO re-encoding, NO quality loss.
 // Whatever you upload (320kbps MP3, lossless FLAC, 24-bit WAV) is exactly what gets streamed.
-router.post('/upload', authenticateToken, upload.fields([
-  { name: 'music', maxCount: 1 },
-  { name: 'cover', maxCount: 1 }
-]), async (req, res) => {
+router.post('/upload', authenticateToken, (req, res, next) => {
+  upload.fields([
+    { name: 'music', maxCount: 1 },
+    { name: 'cover', maxCount: 1 }
+  ])(req, res, (err) => {
+    if (err) {
+      console.error('Multer error:', err.message);
+      return res.status(400).json({ error: 'File upload error', message: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     console.log('Upload request from user:', req.user?.id, req.user?.username);
     console.log('Files received:', req.files ? Object.keys(req.files) : 'none');
+    if (req.files?.music) {
+      console.log('Music file:', req.files.music[0].originalname, req.files.music[0].size, 'bytes');
+    }
 
     if (!req.files || !req.files.music) {
       return res.status(400).json({ error: 'Music file is required' });
@@ -124,11 +135,13 @@ router.post('/upload', authenticateToken, upload.fields([
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(songTitle, songArtist, songAlbum, songGenre, duration, filePath, coverPath || extractedCover || null, req.user.id);
 
+    console.log('Song inserted, id:', result.lastInsertRowid);
     const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(result.lastInsertRowid);
 
     res.status(201).json({ message: 'Song uploaded successfully', song });
   } catch (err) {
     console.error('Upload error:', err);
+    console.error('Upload error stack:', err.stack);
     res.status(500).json({ error: 'Failed to upload song', message: err.message });
   }
 });
