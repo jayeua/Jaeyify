@@ -16,7 +16,7 @@
 //
 
 // ⬇️ CHANGE THIS to your cloud URL after deploying ⬇️
-const SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = 'https://jaeyify.onrender.com';
 
 export const API_URL = SERVER_URL;
 export const STREAM_URL = `${SERVER_URL}/api/music/stream`;
