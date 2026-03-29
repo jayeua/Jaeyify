@@ -545,4 +545,301 @@ router.delete('/songs/:id', authenticateToken, (req, res) => {
   }
 });
 
+// ==========================================
+// Import from URL (YouTube, SoundCloud, etc.)
+// ==========================================
+router.post('/import-url', authenticateToken, async (req, res) => {
+  const { url } = req.body;
+
+  if (!url || typeof url !== 'string') {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  const trimmedUrl = url.trim();
+
+  try {
+    // Detect platform
+    const isYouTube = /(?:youtube\.com|youtu\.be)/i.test(trimmedUrl);
+    const isSoundCloud = /soundcloud\.com/i.test(trimmedUrl);
+
+    if (!isYouTube && !isSoundCloud) {
+      return res.status(400).json({ error: 'Only YouTube and SoundCloud URLs are supported' });
+    }
+
+    let title = 'Unknown Title';
+    let artist = 'Unknown Artist';
+    let duration = 0;
+    let thumbnailUrl = null;
+    let outputPath;
+
+    if (isYouTube) {
+      // ---- YouTube Download ----
+      const ytdl = require('@distube/ytdl-core');
+
+      if (!ytdl.validateURL(trimmedUrl)) {
+        return res.status(400).json({ error: 'Invalid YouTube URL' });
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+
+      const sendEvent = (data) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      };
+
+      sendEvent({ status: 'fetching', message: 'Getting video info...' });
+
+      const info = await ytdl.getInfo(trimmedUrl);
+      const videoDetails = info.videoDetails;
+
+      title = videoDetails.title || 'Unknown Title';
+      artist = videoDetails.author?.name || videoDetails.ownerChannelName || 'Unknown Artist';
+      duration = parseInt(videoDetails.lengthSeconds) || 0;
+      thumbnailUrl = videoDetails.thumbnails?.length > 0
+        ? videoDetails.thumbnails[videoDetails.thumbnails.length - 1].url
+        : null;
+
+      // Clean up title - remove common patterns like "Official Video", "Lyrics", etc.
+      title = title
+        .replace(/\s*[\(\[](Official\s*(Music\s*)?Video|Lyrics?\s*Video|Official\s*Audio|Audio|HD|HQ|4K|Visualizer|Lyric)[\)\]]/gi, '')
+        .replace(/\s*-?\s*(Official\s*(Music\s*)?Video|Lyrics?\s*Video|Official\s*Audio)$/gi, '')
+        .trim();
+
+      // Try to split "Artist - Title" format
+      if (title.includes(' - ')) {
+        const parts = title.split(' - ');
+        if (parts.length === 2) {
+          artist = parts[0].trim();
+          title = parts[1].trim();
+        }
+      }
+
+      sendEvent({ status: 'downloading', message: `Downloading "${title}" by ${artist}...` });
+
+      const filename = `${uuidv4()}.mp3`;
+      outputPath = path.join(__dirname, '..', 'uploads', 'music', filename);
+
+      // Get the best audio stream
+      const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' });
+
+      await new Promise((resolve, reject) => {
+        const stream = ytdl.downloadFromInfo(info, { format: audioFormat });
+        const writeStream = fs.createWriteStream(outputPath);
+
+        let downloaded = 0;
+        const total = parseInt(audioFormat.contentLength) || 0;
+
+        stream.on('data', (chunk) => {
+          downloaded += chunk.length;
+          if (total > 0) {
+            const percent = Math.round((downloaded / total) * 100);
+            sendEvent({ status: 'downloading', message: `Downloading... ${percent}%`, percent });
+          }
+        });
+
+        stream.pipe(writeStream);
+        writeStream.on('finish', resolve);
+        writeStream.on('error', reject);
+        stream.on('error', reject);
+      });
+
+      sendEvent({ status: 'processing', message: 'Processing audio...' });
+
+      // Download thumbnail as cover art
+      let coverPath = null;
+      if (thumbnailUrl) {
+        try {
+          const https = require('https');
+          const http = require('http');
+          const coverFilename = `${uuidv4()}.jpg`;
+          const coverFullPath = path.join(__dirname, '..', 'uploads', 'covers', coverFilename);
+
+          await new Promise((resolve, reject) => {
+            const client = thumbnailUrl.startsWith('https') ? https : http;
+            client.get(thumbnailUrl, (response) => {
+              // Follow redirects
+              if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                const redirectClient = response.headers.location.startsWith('https') ? https : http;
+                redirectClient.get(response.headers.location, (res2) => {
+                  const coverStream = fs.createWriteStream(coverFullPath);
+                  res2.pipe(coverStream);
+                  coverStream.on('finish', () => { coverStream.close(); resolve(); });
+                  coverStream.on('error', reject);
+                }).on('error', reject);
+              } else {
+                const coverStream = fs.createWriteStream(coverFullPath);
+                response.pipe(coverStream);
+                coverStream.on('finish', () => { coverStream.close(); resolve(); });
+                coverStream.on('error', reject);
+              }
+            }).on('error', reject);
+          });
+
+          coverPath = `/uploads/covers/${coverFilename}`;
+        } catch (e) {
+          console.log('Failed to download thumbnail:', e.message);
+        }
+      }
+
+      // Try to read audio metadata/duration from downloaded file
+      try {
+        const mm = require('music-metadata');
+        const metadata = await mm.parseFile(outputPath);
+        if (metadata.format?.duration) {
+          duration = metadata.format.duration;
+        }
+      } catch (e) { /* skip */ }
+
+      // Save to database
+      const filePath = `/uploads/music/${filename}`;
+      const result = db.prepare(`
+        INSERT INTO songs (title, artist, album, genre, duration, file_path, cover_path, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(title, artist, '', '', duration, filePath, coverPath, req.user.id);
+
+      const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(result.lastInsertRowid);
+
+      sendEvent({ status: 'done', message: `"${title}" added to your library!`, song });
+      res.end();
+
+    } else if (isSoundCloud) {
+      // ---- SoundCloud ----
+      // SoundCloud requires resolving the track URL via their API or yt-dlp
+      // For now, we'll use a child_process approach with yt-dlp if installed,
+      // otherwise return an error with instructions
+      const { execSync, spawn } = require('child_process');
+
+      // Check if yt-dlp is available
+      let ytdlpPath;
+      try {
+        ytdlpPath = execSync('which yt-dlp 2>/dev/null || where yt-dlp 2>nul', { encoding: 'utf8' }).trim();
+      } catch (e) {
+        return res.status(400).json({
+          error: 'SoundCloud requires yt-dlp to be installed on the server',
+          help: 'Install it with: pip install yt-dlp (or download from https://github.com/yt-dlp/yt-dlp)',
+        });
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+
+      const sendEvent = (data) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      };
+
+      sendEvent({ status: 'fetching', message: 'Getting track info from SoundCloud...' });
+
+      const filename = `${uuidv4()}.mp3`;
+      outputPath = path.join(__dirname, '..', 'uploads', 'music', filename);
+
+      // Use yt-dlp to download from SoundCloud
+      await new Promise((resolve, reject) => {
+        const proc = spawn('yt-dlp', [
+          '-x',
+          '--audio-format', 'mp3',
+          '--audio-quality', '0',
+          '-o', outputPath,
+          '--no-playlist',
+          '--print-json',
+          trimmedUrl,
+        ]);
+
+        let jsonOutput = '';
+        proc.stdout.on('data', (data) => {
+          jsonOutput += data.toString();
+        });
+
+        proc.stderr.on('data', (data) => {
+          const line = data.toString().trim();
+          if (line.includes('[download]')) {
+            sendEvent({ status: 'downloading', message: line });
+          }
+        });
+
+        proc.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const info = JSON.parse(jsonOutput);
+              title = info.title || 'Unknown Title';
+              artist = info.uploader || info.artist || 'Unknown Artist';
+              duration = info.duration || 0;
+              thumbnailUrl = info.thumbnail || null;
+            } catch (e) { /* parsed what we could */ }
+            resolve();
+          } else {
+            reject(new Error('yt-dlp failed'));
+          }
+        });
+      });
+
+      sendEvent({ status: 'processing', message: 'Processing audio...' });
+
+      // Download thumbnail
+      let coverPath = null;
+      if (thumbnailUrl) {
+        try {
+          const https = require('https');
+          const http = require('http');
+          const coverFilename = `${uuidv4()}.jpg`;
+          const coverFullPath = path.join(__dirname, '..', 'uploads', 'covers', coverFilename);
+          await new Promise((resolve, reject) => {
+            const client = thumbnailUrl.startsWith('https') ? https : http;
+            client.get(thumbnailUrl, (response) => {
+              const coverStream = fs.createWriteStream(coverFullPath);
+              response.pipe(coverStream);
+              coverStream.on('finish', () => { coverStream.close(); resolve(); });
+              coverStream.on('error', reject);
+            }).on('error', reject);
+          });
+          coverPath = `/uploads/covers/${coverFilename}`;
+        } catch (e) {
+          console.log('Failed to download SoundCloud thumbnail:', e.message);
+        }
+      }
+
+      // Read metadata
+      try {
+        const mm = require('music-metadata');
+        const metadata = await mm.parseFile(outputPath);
+        if (metadata.format?.duration) duration = metadata.format.duration;
+      } catch (e) { /* skip */ }
+
+      // Split "Artist - Title" if present
+      if (title.includes(' - ')) {
+        const parts = title.split(' - ');
+        if (parts.length === 2) {
+          artist = parts[0].trim();
+          title = parts[1].trim();
+        }
+      }
+
+      const filePath = `/uploads/music/${filename}`;
+      const result = db.prepare(`
+        INSERT INTO songs (title, artist, album, genre, duration, file_path, cover_path, uploaded_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(title, artist, '', '', duration, filePath, coverPath, req.user.id);
+
+      const song = db.prepare('SELECT * FROM songs WHERE id = ?').get(result.lastInsertRowid);
+
+      sendEvent({ status: 'done', message: `"${title}" added to your library!`, song });
+      res.end();
+    }
+  } catch (err) {
+    console.error('Import URL error:', err);
+    // If we already started SSE, send error as event
+    if (res.headersSent) {
+      res.write(`data: ${JSON.stringify({ status: 'error', message: err.message || 'Import failed' })}\n\n`);
+      res.end();
+    } else {
+      res.status(500).json({ error: 'Import failed', message: err.message });
+    }
+  }
+});
+
 module.exports = router;
