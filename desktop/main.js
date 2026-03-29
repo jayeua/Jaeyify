@@ -57,7 +57,7 @@ function createWindow() {
         </head>
         <body>
           <div>
-            <h1>🎵 OwnSpotify</h1>
+            <h1>🎵 Jaeyify</h1>
             <p>
               The Expo web server is not running.<br><br>
               Start it by running:<br>
@@ -82,7 +82,7 @@ function createWindow() {
   // Custom menu
   const menu = Menu.buildFromTemplate([
     {
-      label: 'OwnSpotify',
+      label: 'Jaeyify',
       submenu: [
         { role: 'about' },
         { type: 'separator' },

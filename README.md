@@ -1,4 +1,4 @@
-# 🎵 OwnSpotify — Self-Hosted Music Streaming App
+# 🎵 Jaeyify — Self-Hosted Music Streaming App
 
 Your own personal Spotify — no subscriptions, no ads, full control. Upload your music, create playlists, and stream on iPhone, Android, and Desktop.
 
@@ -24,7 +24,7 @@ Your own personal Spotify — no subscriptions, no ads, full control. Upload you
 
 ## 🎵 Audio Quality
 
-OwnSpotify streams your files **exactly as uploaded** — no transcoding, no compression, no quality loss.
+Jaeyify streams your files **exactly as uploaded** — no transcoding, no compression, no quality loss.
 
 | What you upload | What you hear | Comparable to |
 |---|---|---|
@@ -41,7 +41,7 @@ OwnSpotify streams your files **exactly as uploaded** — no transcoding, no com
 ## 🏗️ Architecture
 
 ```
-ownspotify/
+jaeyify/
 ├── backend/           ← Node.js + Express + SQLite server
 ├── app/               ← React Native + Expo (iOS, Android, Web)
 ├── desktop/           ← Electron wrapper for desktop
@@ -77,7 +77,7 @@ JWT_SECRET=your-secret-here docker compose up -d --build
 docker compose ps
 
 # View logs
-docker compose logs -f ownspotify
+docker compose logs -f jaeyify
 
 # Stop
 docker compose down
@@ -92,10 +92,10 @@ docker compose up -d --build
 ### Docker data persistence
 
 Your data is stored in Docker volumes and persists across restarts:
-- `ownspotify-data` — Database (accounts, playlists, metadata)
-- `ownspotify-music` — Uploaded music files
-- `ownspotify-covers` — Album cover art
-- `ownspotify-avatars` — User avatars
+- `jaeyify-data` — Database (accounts, playlists, metadata)
+- `jaeyify-music` — Uploaded music files
+- `jaeyify-covers` — Album cover art
+- `jaeyify-avatars` — User avatars
 
 ---
 
@@ -312,11 +312,11 @@ If you want to use the app at school/uni or when your PC is off, deploy the back
 
 6. Click **Deploy** — it takes ~2 minutes
 
-7. You'll get a URL like `https://ownspotify-xxxx.onrender.com`
+7. You'll get a URL like `https://jaeyify-xxxx.onrender.com`
 
 8. Update `app/src/config.js`:
    ```js
-   const SERVER_URL = 'https://ownspotify-xxxx.onrender.com';
+   const SERVER_URL = 'https://jaeyify-xxxx.onrender.com';
    ```
 
 9. Now it works **anywhere**, on any device, even when your PC is off!

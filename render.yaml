@@ -3,7 +3,7 @@
 
 services:
   - type: web
-    name: ownspotify
+    name: jaeyify
     runtime: node
     plan: free
     buildCommand: cd backend && npm install
@@ -16,6 +16,6 @@ services:
       - key: PORT
         value: 3000
     disk:
-      name: ownspotify-data
+      name: jaeyify-data
       mountPath: /opt/render/project/src/backend/uploads
       sizeGB: 1

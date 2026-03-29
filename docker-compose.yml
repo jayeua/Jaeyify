@@ -1,34 +1,34 @@
 services:
   # ============================================
-  # OwnSpotify Backend Server
+  # Jaeyify Backend Server
   # ============================================
-  ownspotify:
+  jaeyify:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ownspotify-server
+    container_name: jaeyify-server
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
       # Persist database and uploaded music files
-      - ownspotify-data:/app/data
-      - ownspotify-music:/app/uploads/music
-      - ownspotify-covers:/app/uploads/covers
-      - ownspotify-avatars:/app/uploads/avatars
+      - jaeyify-data:/app/data
+      - jaeyify-music:/app/uploads/music
+      - jaeyify-covers:/app/uploads/covers
+      - jaeyify-avatars:/app/uploads/avatars
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-ownspotify-change-this-secret-key}
+      - JWT_SECRET=${JWT_SECRET:-jaeyify-change-this-secret-key}
     # Upload limit: allow up to 500MB body size
     # (the app already limits individual files to 200MB)
 
 volumes:
-  ownspotify-data:
+  jaeyify-data:
     driver: local
-  ownspotify-music:
+  jaeyify-music:
     driver: local
-  ownspotify-covers:
+  jaeyify-covers:
     driver: local
-  ownspotify-avatars:
+  jaeyify-avatars:
     driver: local

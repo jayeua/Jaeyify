@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "OwnSpotify",
-    "slug": "ownspotify",
+    "name": "Jaeyify",
+    "slug": "jaeyify",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +12,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ownspotify.app",
+      "bundleIdentifier": "com.jaeyify.app",
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       }
@@ -21,7 +21,7 @@
       "adaptiveIcon": {
         "backgroundColor": "#121212"
       },
-      "package": "com.ownspotify.app",
+      "package": "com.jaeyify.app",
       "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
     },
     "web": {

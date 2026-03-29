@@ -1,7 +1,7 @@
 {
-  "name": "ownspotify-backend",
+  "name": "jaeyify-backend",
   "version": "1.0.0",
-  "description": "OwnSpotify - Self-hosted music streaming server",
+  "description": "Jaeyify - Self-hosted music streaming server",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

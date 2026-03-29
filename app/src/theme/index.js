@@ -1,4 +1,4 @@
-// OwnSpotify Theme - Dark purple accent theme
+// Jaeyify Theme - Dark purple accent theme
 export const colors = {
   // Backgrounds
   background: '#0A0A0F',

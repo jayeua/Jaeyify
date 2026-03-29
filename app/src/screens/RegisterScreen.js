@@ -62,7 +62,7 @@ export default function RegisterScreen({ navigation }) {
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join OwnSpotify and start listening</Text>
+            <Text style={styles.subtitle}>Join Jaeyify and start listening</Text>
           </View>
 
           {/* Form */}

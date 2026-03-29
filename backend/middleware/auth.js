@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ownspotify-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'jaeyify-secret-key-change-in-production';
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];

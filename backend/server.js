@@ -31,7 +31,7 @@ app.use('/api/playlists', require('./routes/playlists'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'OwnSpotify server is running!' });
+  res.json({ status: 'ok', message: 'Jaeyify server is running!' });
 });
 
 // Error handling middleware
@@ -46,7 +46,7 @@ initDB();
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
   ╔══════════════════════════════════════════╗
-  ║       🎵 OwnSpotify Server Running      ║
+  ║       🎵 Jaeyify Server Running        ║
   ║                                          ║
   ║   Local:   http://localhost:${PORT}        ║
   ║   Network: http://0.0.0.0:${PORT}         ║

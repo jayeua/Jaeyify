@@ -1,5 +1,5 @@
 // ==============================================
-// OwnSpotify API Configuration
+// Jaeyify API Configuration
 // ==============================================
 //
 // Pick ONE of these and set it as SERVER_URL:
@@ -12,7 +12,7 @@
 //
 // 3. CLOUD (works anywhere, even when PC is off):
 //    Deploy to Render.com (free), then use your Render URL:
-//    const SERVER_URL = 'https://ownspotify-XXXX.onrender.com';
+//    const SERVER_URL = 'https://jaeyify-XXXX.onrender.com';
 //
 
 // ⬇️ CHANGE THIS to your cloud URL after deploying ⬇️

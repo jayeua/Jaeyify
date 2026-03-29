@@ -49,7 +49,7 @@ export default function LoginScreen({ navigation }) {
             <View style={styles.logoCircle}>
               <Ionicons name="musical-notes" size={48} color={colors.primary} />
             </View>
-            <Text style={styles.appName}>OwnSpotify</Text>
+            <Text style={styles.appName}>Jaeyify</Text>
             <Text style={styles.tagline}>Your music, your way</Text>
           </View>
 
