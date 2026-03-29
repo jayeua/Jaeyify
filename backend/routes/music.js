@@ -76,6 +76,9 @@ router.post('/upload', authenticateToken, upload.fields([
   { name: 'cover', maxCount: 1 }
 ]), async (req, res) => {
   try {
+    console.log('Upload request from user:', req.user?.id, req.user?.username);
+    console.log('Files received:', req.files ? Object.keys(req.files) : 'none');
+
     if (!req.files || !req.files.music) {
       return res.status(400).json({ error: 'Music file is required' });
     }

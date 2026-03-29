@@ -31,7 +31,17 @@ app.use('/api/playlists', require('./routes/playlists'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Jaeyify server is running!' });
+  const { db } = require('./database');
+  const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+  const songCount = db.prepare('SELECT COUNT(*) as count FROM songs').get().count;
+  const uploadsExist = fs.existsSync(path.join(__dirname, 'uploads', 'music'));
+  const musicFiles = uploadsExist ? fs.readdirSync(path.join(__dirname, 'uploads', 'music')).length : 0;
+  res.json({
+    status: 'ok',
+    message: 'Jaeyify server is running!',
+    stats: { users: userCount, songs: songCount, musicFiles },
+    uptime: Math.floor(process.uptime()) + 's',
+  });
 });
 
 // Error handling middleware
