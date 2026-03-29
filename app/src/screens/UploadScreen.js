@@ -158,20 +158,16 @@ export default function UploadScreen({ navigation }) {
     }
 
     setUploading(true);
-    setImportStatus({ status: 'fetching', message: 'Connecting...' });
+    setImportStatus({ status: 'downloading', message: 'Downloading and processing... This may take a moment.' });
 
     try {
-      const result = await api.importFromUrl(trimmed, (progress) => {
-        setImportStatus(progress);
-      });
+      const result = await api.importFromUrl(trimmed);
 
-      if (result?.status === 'done') {
-        setImportStatus(null);
-        Alert.alert('Imported!', result.message || 'Song added to your library', [
-          { text: 'Import Another', onPress: () => setImportUrl('') },
-          { text: 'Go Home', onPress: () => navigation.navigate('Home') },
-        ]);
-      }
+      setImportStatus(null);
+      Alert.alert('Imported!', result.message || 'Song added to your library', [
+        { text: 'Import Another', onPress: () => setImportUrl('') },
+        { text: 'Go Home', onPress: () => navigation.navigate('Home') },
+      ]);
     } catch (err) {
       setImportStatus(null);
       Alert.alert('Import Failed', err.message);

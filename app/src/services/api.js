@@ -157,42 +157,11 @@ class ApiService {
   }
 
   // Import song from YouTube / SoundCloud URL
-  // Uses Server-Sent Events to stream progress updates
-  async importFromUrl(url, onProgress) {
-    const fetchUrl = `${this.baseURL}/api/music/import-url`;
-    const response = await fetch(fetchUrl, {
+  async importFromUrl(url) {
+    return this.request('/api/music/import-url', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(this.token ? { 'Authorization': `Bearer ${this.token}` } : {}),
-      },
       body: JSON.stringify({ url }),
     });
-
-    if (!response.ok && !response.headers?.get('content-type')?.includes('text/event-stream')) {
-      const data = await response.json();
-      throw new Error(data.error || 'Import failed');
-    }
-
-    // Parse SSE stream
-    const text = await response.text();
-    const events = text.split('\n\n').filter(e => e.startsWith('data: '));
-    let lastEvent = null;
-
-    for (const event of events) {
-      const jsonStr = event.replace('data: ', '');
-      try {
-        const data = JSON.parse(jsonStr);
-        lastEvent = data;
-        if (onProgress) onProgress(data);
-      } catch (e) { /* skip parse errors */ }
-    }
-
-    if (lastEvent?.status === 'error') {
-      throw new Error(lastEvent.message);
-    }
-
-    return lastEvent;
   }
 
   // ==================== PLAYLISTS ====================
