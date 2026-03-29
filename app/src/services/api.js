@@ -47,7 +47,34 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+
+      // Try to parse as JSON, handle non-JSON responses gracefully
+      let data;
+      const contentType = response.headers.get('content-type') || '';
+      const text = await response.text();
+
+      try {
+        data = JSON.parse(text);
+      } catch (parseErr) {
+        // Response wasn't JSON - might be SSE or error page
+        if (!response.ok) {
+          throw new Error(`Server error (${response.status})`);
+        }
+        // If it looks like SSE data, try to extract the last JSON event
+        if (text.includes('data: ')) {
+          const events = text.split('\n\n').filter(e => e.startsWith('data: '));
+          const lastEvent = events[events.length - 1];
+          if (lastEvent) {
+            try {
+              data = JSON.parse(lastEvent.replace('data: ', ''));
+            } catch (e) {
+              throw new Error('Unexpected response from server');
+            }
+          }
+        } else {
+          throw new Error('Unexpected response from server');
+        }
+      }
 
       if (!response.ok) {
         throw new Error(data.error || data.message || 'Request failed');

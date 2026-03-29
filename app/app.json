@@ -9,12 +9,16 @@
     "splash": {
       "backgroundColor": "#121212"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jaeyify.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": [
+          "audio"
+        ]
       }
     },
     "android": {
@@ -22,19 +26,17 @@
         "backgroundColor": "#121212"
       },
       "package": "com.jaeyify.app",
-      "permissions": ["READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [
-      [
-        "expo-av",
-        {
-          "microphonePermission": false
-        }
-      ]
+      "expo-audio"
     ]
   }
 }

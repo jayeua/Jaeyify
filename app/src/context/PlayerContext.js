@@ -1,149 +1,110 @@
 import React, { createContext, useState, useContext, useRef, useCallback, useEffect } from 'react';
-import { Audio } from 'expo-av';
+import { useAudioPlayer, useAudioPlayerStatus, AudioModule } from 'expo-audio';
 import api from '../services/api';
 
 const PlayerContext = createContext(null);
 
-export function PlayerProvider({ children }) {
+// Inner component that uses the audio player hook
+function PlayerProviderInner({ children }) {
   const [currentSong, setCurrentSong] = useState(null);
   const [queue, setQueue] = useState([]);
   const [queueIndex, setQueueIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [position, setPosition] = useState(0);      // milliseconds
-  const [duration, setDuration] = useState(0);        // milliseconds
   const [shuffle, setShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState('off'); // off, one, all
+  const [currentUrl, setCurrentUrl] = useState(null);
 
-  const soundRef = useRef(null);
-  const positionTimerRef = useRef(null);
+  const player = useAudioPlayer(currentUrl ? { uri: currentUrl } : null);
+  const status = useAudioPlayerStatus(player);
+
+  const isPlaying = status?.playing ?? false;
+  const position = Math.floor((status?.currentTime ?? 0) * 1000); // convert to ms
+  const duration = Math.floor((status?.duration ?? 0) * 1000);    // convert to ms
+  const didFinish = status?.didJustFinish ?? false;
 
   // Configure audio mode on mount
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      staysActiveInBackground: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
+    AudioModule.setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      shouldRouteThroughEarpiece: false,
     });
-
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-      if (positionTimerRef.current) {
-        clearInterval(positionTimerRef.current);
-      }
-    };
   }, []);
 
-  const onPlaybackStatusUpdate = useCallback((status) => {
-    if (status.isLoaded) {
-      setPosition(status.positionMillis || 0);
-      setDuration(status.durationMillis || 0);
-      setIsPlaying(status.isPlaying);
-
-      if (status.didJustFinish) {
-        handleSongEnd();
-      }
+  // Handle song end
+  useEffect(() => {
+    if (didFinish) {
+      handleSongEnd();
     }
-  }, [repeatMode, shuffle, queue, queueIndex]);
+  }, [didFinish]);
+
+  // Auto-play when URL is set
+  useEffect(() => {
+    if (currentUrl && player) {
+      player.play();
+    }
+  }, [currentUrl, player]);
 
   const handleSongEnd = useCallback(async () => {
     if (repeatMode === 'one') {
-      // Replay current song
-      if (soundRef.current) {
-        await soundRef.current.replayAsync();
-      }
+      player.seekTo(0);
+      player.play();
     } else if (queueIndex < queue.length - 1 || repeatMode === 'all') {
-      // Play next song
       await playNext();
-    } else {
-      // End of queue, stop
-      setIsPlaying(false);
-      setPosition(0);
     }
-  }, [repeatMode, queue, queueIndex, shuffle]);
+  }, [repeatMode, queue, queueIndex, shuffle, player]);
 
   const loadAndPlay = useCallback(async (song) => {
     try {
       setIsLoading(true);
-
-      // Unload previous sound
-      if (soundRef.current) {
-        await soundRef.current.unloadAsync();
-        soundRef.current = null;
-      }
-
       setCurrentSong(song);
-      setPosition(0);
-      setDuration(0);
-
       const streamUrl = api.getStreamURL(song.id);
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: streamUrl },
-        { shouldPlay: true },
-        onPlaybackStatusUpdate
-      );
-
-      soundRef.current = sound;
-      setIsPlaying(true);
+      setCurrentUrl(streamUrl);
 
       // Record play
       try {
         await api.recordPlay(song.id);
       } catch (e) {
-        // Non-critical, ignore
+        // Non-critical
       }
     } catch (err) {
       console.error('Failed to load audio:', err);
-      setIsPlaying(false);
     } finally {
       setIsLoading(false);
     }
-  }, [onPlaybackStatusUpdate]);
+  }, []);
 
-  // Play a single song or a list of songs starting at an index
   const play = useCallback(async (songs, index = 0) => {
     if (!Array.isArray(songs)) {
       songs = [songs];
       index = 0;
     }
-
     setQueue(songs);
     setQueueIndex(index);
     await loadAndPlay(songs[index]);
   }, [loadAndPlay]);
 
-  const pause = useCallback(async () => {
-    if (soundRef.current) {
-      await soundRef.current.pauseAsync();
-      setIsPlaying(false);
-    }
-  }, []);
+  const pause = useCallback(() => {
+    if (player) player.pause();
+  }, [player]);
 
-  const resume = useCallback(async () => {
-    if (soundRef.current) {
-      await soundRef.current.playAsync();
-      setIsPlaying(true);
-    }
-  }, []);
+  const resume = useCallback(() => {
+    if (player) player.play();
+  }, [player]);
 
-  const togglePlayPause = useCallback(async () => {
+  const togglePlayPause = useCallback(() => {
     if (isPlaying) {
-      await pause();
+      pause();
     } else {
-      await resume();
+      resume();
     }
   }, [isPlaying, pause, resume]);
 
-  const seek = useCallback(async (positionMs) => {
-    if (soundRef.current) {
-      await soundRef.current.setPositionAsync(positionMs);
-      setPosition(positionMs);
+  const seek = useCallback((positionMs) => {
+    if (player) {
+      player.seekTo(positionMs / 1000); // expo-audio uses seconds
     }
-  }, []);
+  }, [player]);
 
   const playNext = useCallback(async () => {
     if (queue.length === 0) return;
@@ -157,7 +118,7 @@ export function PlayerProvider({ children }) {
         if (repeatMode === 'all') {
           nextIndex = 0;
         } else {
-          return; // End of queue
+          return;
         }
       }
     }
@@ -169,9 +130,8 @@ export function PlayerProvider({ children }) {
   const playPrevious = useCallback(async () => {
     if (queue.length === 0) return;
 
-    // If more than 3 seconds in, restart current song
     if (position > 3000) {
-      await seek(0);
+      seek(0);
       return;
     }
 
@@ -209,7 +169,6 @@ export function PlayerProvider({ children }) {
     setQueueIndex(0);
   }, []);
 
-  // Format time helper
   const formatTime = (ms) => {
     if (!ms || isNaN(ms)) return '0:00';
     const totalSeconds = Math.floor(ms / 1000);
@@ -220,7 +179,6 @@ export function PlayerProvider({ children }) {
 
   return (
     <PlayerContext.Provider value={{
-      // State
       currentSong,
       queue,
       queueIndex,
@@ -230,8 +188,6 @@ export function PlayerProvider({ children }) {
       duration,
       shuffle,
       repeatMode,
-
-      // Actions
       play,
       pause,
       resume,
@@ -243,14 +199,16 @@ export function PlayerProvider({ children }) {
       toggleRepeat,
       addToQueue,
       clearQueue,
-
-      // Helpers
       formatTime,
       progress: duration > 0 ? position / duration : 0,
     }}>
       {children}
     </PlayerContext.Provider>
   );
+}
+
+export function PlayerProvider({ children }) {
+  return <PlayerProviderInner>{children}</PlayerProviderInner>;
 }
 
 export function usePlayer() {
