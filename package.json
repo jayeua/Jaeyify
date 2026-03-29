@@ -1,0 +1,11 @@
+{
+  "name": "ownspotify",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "build": "cd backend && npm install"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "cacheDirectories": ["backend/node_modules"]
+}

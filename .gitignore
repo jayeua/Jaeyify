@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+.expo/
+
+# Data & uploads (don't push your music to GitHub)
+backend/data/
+backend/uploads/music/*
+backend/uploads/covers/*
+backend/uploads/avatars/*
+!backend/uploads/music/.gitkeep
+!backend/uploads/covers/.gitkeep
+!backend/uploads/avatars/.gitkeep
+
+# Environment
+.env
+*.env.local
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*

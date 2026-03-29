@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.env
+*.db
+uploads/music/*
+uploads/covers/*
+uploads/avatars/*
+data/*
+desktop/node_modules
+app/node_modules
+app/.expo
+.git

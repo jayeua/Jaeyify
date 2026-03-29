@@ -1,0 +1,21 @@
+# Render.com — Free cloud deployment config
+# This file tells Render how to build and run your backend
+
+services:
+  - type: web
+    name: ownspotify
+    runtime: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: PORT
+        value: 3000
+    disk:
+      name: ownspotify-data
+      mountPath: /opt/render/project/src/backend/uploads
+      sizeGB: 1
