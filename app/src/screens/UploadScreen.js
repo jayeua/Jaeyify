@@ -26,26 +26,51 @@ export default function UploadScreen({ navigation }) {
 
   const pickMusic = async () => {
     try {
+      console.log('[Upload] Opening file picker, mode:', mode);
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'audio/*',
+        type: [
+          'audio/*',
+          'audio/mpeg',
+          'audio/mp3',
+          'audio/wav',
+          'audio/flac',
+          'audio/aac',
+          'audio/ogg',
+          'audio/m4a',
+          'audio/x-m4a',
+          'audio/mp4',
+          'application/octet-stream',
+        ],
         multiple: mode === 'batch',
         copyToCacheDirectory: true,
       });
 
-      if (result.canceled) return;
+      console.log('[Upload] Picker result:', JSON.stringify(result, null, 2));
+
+      if (result.canceled) {
+        console.log('[Upload] Picker was canceled');
+        return;
+      }
+
+      const assets = result.assets || [];
+      console.log('[Upload] Assets count:', assets.length);
+      if (assets.length > 0) {
+        console.log('[Upload] First asset:', assets[0].name, assets[0].uri?.substring(0, 60), assets[0].mimeType);
+      }
 
       if (mode === 'batch') {
-        setFiles(result.assets || []);
+        setFiles(assets);
       } else {
-        setFiles(result.assets ? [result.assets[0]] : []);
+        setFiles(assets.length > 0 ? [assets[0]] : []);
         // Auto-fill title from filename
-        if (result.assets && result.assets[0]) {
-          const name = result.assets[0].name.replace(/\.[^/.]+$/, '');
+        if (assets.length > 0 && assets[0]) {
+          const name = assets[0].name.replace(/\.[^/.]+$/, '');
           if (!title) setTitle(name);
         }
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to pick file');
+      console.error('[Upload] Pick error:', err);
+      Alert.alert('Error', `Failed to pick file: ${err.message}`);
     }
   };
 
@@ -74,9 +99,12 @@ export default function UploadScreen({ navigation }) {
 
   const handleUpload = async () => {
     if (files.length === 0) {
-      Alert.alert('No file selected', 'Please select a music file first');
+      Alert.alert('No file selected', 'Please tap the area above to select a music file first.');
       return;
     }
+
+    console.log('[Upload] Starting upload, files:', files.length);
+    console.log('[Upload] File details:', files.map(f => ({ name: f.name, uri: f.uri?.substring(0, 60), type: f.mimeType })));
 
     setUploading(true);
     try {
@@ -132,7 +160,8 @@ export default function UploadScreen({ navigation }) {
         ]);
       }
     } catch (err) {
-      Alert.alert('Upload Failed', err.message);
+      console.error('[Upload] Upload error:', err);
+      Alert.alert('Upload Failed', err.message || 'Unknown error occurred');
     } finally {
       setUploading(false);
       setUploadProgress('');
@@ -409,7 +438,7 @@ export default function UploadScreen({ navigation }) {
             <TouchableOpacity
               style={[styles.uploadButton, (uploading || files.length === 0) && styles.uploadButtonDisabled]}
               onPress={handleUpload}
-              disabled={uploading || files.length === 0}
+              disabled={uploading}
             >
               {uploading ? (
                 <View style={styles.uploadingContainer}>

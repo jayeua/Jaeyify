@@ -63,7 +63,9 @@ class ApiService {
     }
 
     try {
+      console.log(`[API] ${config.method} ${url}`, options.isFormData ? '(FormData)' : '');
       const response = await fetch(url, config);
+      console.log(`[API] Response: ${response.status} ${response.statusText}`);
 
       // Try to parse as JSON, handle non-JSON responses gracefully
       let data;
